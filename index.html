@@ -801,59 +801,63 @@ canvas.style.webkitUserSelect = 'none';
         showExercises();
       }
     }
-    // ===================== FIXES ESPECÍFICOS PARA iPAD / iOS =====================
+   // ===================== FIXES POTENTES PARA iPAD / SAFARI =====================
 document.addEventListener('DOMContentLoaded', function() {
 
-  // Mejor manejo de touch en canvas
-  function improveCanvasTouch() {
-    const canvas = document.getElementById('tacticCanvas');
-    if (!canvas) return;
-
-    canvas.addEventListener('touchmove', function(e) {
-      if (e.touches.length > 1) e.preventDefault(); // evita zoom con dos dedos
-    }, { passive: false });
-
-    // Doble tap para limpiar a veces falla en iOS
-    let lastTap = 0;
-    canvas.addEventListener('touchend', function(e) {
-      const currentTime = new Date().getTime();
-      const tapLength = currentTime - lastTap;
-      if (tapLength < 500 && tapLength > 0) {
-        // doble tap → limpiar
-        if (confirm("¿Limpiar pizarra?")) clearBoard();
-      }
-      lastTap = currentTime;
-    });
-  }
-
-  // Mejorar clics en botones (el problema que tenías)
-  function fixButtonClicks() {
+  // Fix principal para botones en iOS
+  function fixIOSButtons() {
     document.addEventListener('touchend', function(e) {
-      if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+      let target = e.target;
+      
+      // Buscar el botón más cercano
+      while (target && target.tagName !== 'BUTTON') {
+        target = target.parentElement;
+      }
+      
+      if (target && target.tagName === 'BUTTON') {
         e.stopImmediatePropagation();
         e.preventDefault();
+        
+        // Ejecutar manualmente el onclick
+        if (target.onclick) {
+          target.onclick.call(target, e);
+        } else if (target.getAttribute('onclick')) {
+          const fn = target.getAttribute('onclick');
+          new Function(fn)();
+        }
       }
     }, { passive: false });
   }
 
-  // Prevenir zoom en inputs
-  function preventZoom() {
-    const inputs = document.querySelectorAll('input, textarea');
-    inputs.forEach(input => {
-      input.addEventListener('focus', () => {
-        document.documentElement.style.fontSize = '16px';
-      });
+  // Mejorar canvas en iPad
+  function fixCanvas() {
+    const canvas = document.getElementById('tacticCanvas');
+    if (canvas) {
+      canvas.style.touchAction = 'none';
+      canvas.style.webkitTouchCallout = 'none';
+    }
+  }
+
+  // Prevenir zoom y mejorar respuesta
+  function preventZoomAndImprove() {
+    document.documentElement.style.setProperty('touch-action', 'manipulation');
+    const inputs = document.querySelectorAll('input, textarea, select');
+    inputs.forEach(el => {
+      el.style.fontSize = '16px';
     });
   }
 
-  improveCanvasTouch();
-  fixButtonClicks();
-  preventZoom();
-});
+  fixIOSButtons();
+  fixCanvas();
+  preventZoomAndImprove();
 
-    window.onload = () => {
-      // Solo mostramos el login
-    };
+  // Reforzar después de abrir modales
+  setTimeout(() => {
+    document.querySelectorAll('button').forEach(btn => {
+      btn.style.webkitTapHighlightColor = 'transparent';
+    });
+  }, 800);
+});
   </script>
 </body>
 </html>
