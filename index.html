@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f59e0b">
   <title>Futsal Coach Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -14,7 +16,29 @@
       box-shadow: 0 15px 50px rgba(0,0,0,0.9);
       touch-action: none;
       cursor: crosshair;
-    }
+    /* Fixes específicos para iPad / Safari */
+body {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+}
+
+#tacticCanvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Mejorar botones en iOS */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Evitar que los modales se cierren solos */
+.modal {
+  -webkit-backdrop-filter: blur(8px);
+}
   </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
@@ -397,7 +421,8 @@ function saveTactics() {
   }, 100);
 }
 
-    function initCanvas() {
+    function initCanvas() {canvas.style.touchAction = 'none';
+canvas.style.webkitUserSelect = 'none';
       canvas = document.getElementById('tacticCanvas');
       ctx = canvas.getContext('2d');
       ctx.lineWidth = 8;
@@ -570,10 +595,13 @@ function saveTactics() {
         const div = document.createElement('div');
         div.className = "bg-gray-800 rounded-3xl p-6 cursor-pointer";
         div.innerHTML = `
-          <div class="flex justify-between text-orange-400 text-sm">
-            <span>${t.date}</span>
-            <span>${t.duration ? t.duration + ' min' : ''}</span>
-          </div>
+  ...
+  <div class="flex gap-3 mt-5">
+    <button onclick="showTrainingDetail(${i}); event.stopImmediatePropagation()" class="flex-1 py-3 bg-orange-600 rounded-2xl font-bold">👁️ Ver Detalle</button>
+    <button onclick="editTraining(${i}); event.stopImmediatePropagation()" class="flex-1 py-3 bg-gray-700 rounded-2xl">Editar</button>
+    <button onclick="deleteTraining(${i}); event.stopImmediatePropagation()" class="flex-1 py-3 bg-red-900 rounded-2xl">Borrar</button>
+  </div>
+`;
           <h3 class="font-bold text-xl mt-2">${t.title}</h3>
           ${t.exercises && t.exercises.length ? `<p class="text-sm mt-2 text-gray-300">Ejercicios: ${t.exercises.join(', ')}</p>` : ''}
           <div class="flex gap-3 mt-5">
@@ -773,6 +801,55 @@ function saveTactics() {
         showExercises();
       }
     }
+    // ===================== FIXES ESPECÍFICOS PARA iPAD / iOS =====================
+document.addEventListener('DOMContentLoaded', function() {
+
+  // Mejor manejo de touch en canvas
+  function improveCanvasTouch() {
+    const canvas = document.getElementById('tacticCanvas');
+    if (!canvas) return;
+
+    canvas.addEventListener('touchmove', function(e) {
+      if (e.touches.length > 1) e.preventDefault(); // evita zoom con dos dedos
+    }, { passive: false });
+
+    // Doble tap para limpiar a veces falla en iOS
+    let lastTap = 0;
+    canvas.addEventListener('touchend', function(e) {
+      const currentTime = new Date().getTime();
+      const tapLength = currentTime - lastTap;
+      if (tapLength < 500 && tapLength > 0) {
+        // doble tap → limpiar
+        if (confirm("¿Limpiar pizarra?")) clearBoard();
+      }
+      lastTap = currentTime;
+    });
+  }
+
+  // Mejorar clics en botones (el problema que tenías)
+  function fixButtonClicks() {
+    document.addEventListener('touchend', function(e) {
+      if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
+
+  // Prevenir zoom en inputs
+  function preventZoom() {
+    const inputs = document.querySelectorAll('input, textarea');
+    inputs.forEach(input => {
+      input.addEventListener('focus', () => {
+        document.documentElement.style.fontSize = '16px';
+      });
+    });
+  }
+
+  improveCanvasTouch();
+  fixButtonClicks();
+  preventZoom();
+});
 
     window.onload = () => {
       // Solo mostramos el login
