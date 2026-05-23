@@ -3,12 +3,10 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#f59e0b">
-  <title>title>Futsal Coach Pro - v1001</title</title>
+  <title>Futsal Coach Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .nav-active { background-color: #f59e0b; color: black; font-weight: bold; }
     #tacticCanvas {
@@ -188,7 +186,7 @@
     </div>
   </div>
 
-  <!-- Modal Temporizador -->
+  <!-- Modal Temporizador (con 20 y 25) -->
   <div id="timerModal" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-[300]">
     <div class="bg-gray-800 rounded-3xl w-full max-w-md mx-4 p-8">
       <div class="flex justify-between items-center mb-6">
@@ -211,19 +209,17 @@
         <button onclick="resetTimer()" class="flex-1 py-5 bg-gray-600 rounded-3xl font-bold text-xl">Reset</button>
         <button onclick="toggleTimer()" id="startPauseBtn" class="flex-1 py-5 bg-orange-600 rounded-3xl font-bold text-xl">▶️ Iniciar</button>
       </div>
+      <p class="text-center text-gray-400 text-sm mt-6">Presiona los números para cargar minutos</p>
     </div>
   </div>
 
-  <!-- Botón flotante -->
-  <button onclick="openTimerModal()" id="timerFloatingBtn" class="hidden fixed bottom-6 right-6 w-16 h-16 bg-orange-600 hover:bg-orange-500 text-white rounded-full shadow-2xl flex items-center justify-center text-4xl z-[400]">⏰</button>
+  <!-- Botón flotante temporizador -->
+  <button onclick="openTimerModal()" id="timerFloatingBtn"
+    class="hidden fixed bottom-6 right-6 w-16 h-16 bg-orange-600 hover:bg-orange-500 text-white rounded-full shadow-2xl flex items-center justify-center text-4xl z-[400]">
+    ⏰
+  </button>
 
   <script>
-    // ==================== SUPABASE ====================
-    const SUPABASE_URL = 'https://xisszlkjuwjjcxktamhr.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc3N6bGtqdXdqamN4a3RhbWhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDA2OTUsImV4cCI6MjA5NTExNjY5NX0.OJuQk3XXzS9J0sSEbuG7dEH3vGc-WnFYaXa_1V6CAbo';
-
-    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
     // ==================== USUARIOS ====================
     let users = JSON.parse(localStorage.getItem('futsalUsers')) || [
       { username: "Sebas", password: "mokyto77", role: "admin" },
@@ -233,18 +229,89 @@
 
     let currentUser = null;
 
+    function checkLogin() {
+      const username = document.getElementById('usernameInput').value.trim();
+      const password = document.getElementById('passwordInput').value.trim();
+      const user = users.find(u => u.username === username && u.password === password);
+      if (user) {
+        currentUser = user;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('mainHeader').style.display = 'flex';
+        document.getElementById('mainNav').style.display = 'flex';
+        document.getElementById('timerFloatingBtn').classList.remove('hidden');
+        const adminBtn = document.getElementById('adminBtn');
+        adminBtn.style.display = (user.role === "admin") ? "inline-block" : "none";
+        showSection('players');
+      } else {
+        document.getElementById('loginError').classList.remove('hidden');
+        setTimeout(() => document.getElementById('loginError').classList.add('hidden'), 3000);
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('mainHeader').style.display = "none";
+      document.getElementById('mainNav').style.display = "none";
+      document.getElementById('timerFloatingBtn').classList.add('hidden');
+      document.getElementById('content').innerHTML = '';
+      document.getElementById('loginScreen').style.display = "flex";
+    }
+
+    function isAdmin() {
+      return currentUser && currentUser.role === "admin";
+    }
+
+    // ==================== ADMIN PANEL ====================
+    function showAdminPanel() {
+      if (!isAdmin()) { alert("Solo el administrador puede acceder aquí"); return; }
+      document.getElementById('adminPanel').classList.remove('hidden');
+      renderUsersList();
+    }
+    function closeAdmin() { document.getElementById('adminPanel').classList.add('hidden'); }
+    function renderUsersList() {
+      const list = document.getElementById('usersList');
+      list.innerHTML = users.map((u, i) => `
+        <div class="bg-gray-700 rounded-2xl p-4 mb-3 flex justify-between items-center">
+          <div>
+            <p class="font-bold">${u.username}</p>
+            <p class="text-xs text-gray-400">${u.role || 'usuario'}</p>
+          </div>
+          ${u.role !== 'admin' ? `<button onclick="deleteUser(${i})" class="px-4 py-2 bg-red-600 rounded-xl text-sm">Borrar</button>` : '<span class="text-green-400">Administrador</span>'}
+        </div>
+      `).join('');
+    }
+    function showNewUserForm() {
+      if (!isAdmin()) return;
+      const username = prompt("Nombre del nuevo usuario:");
+      if (!username) return;
+      const password = prompt("Contraseña:");
+      if (!password) return;
+      if (users.find(u => u.username === username)) return alert("Ese usuario ya existe");
+      users.push({ username, password, role: "user" });
+      localStorage.setItem('futsalUsers', JSON.stringify(users));
+      renderUsersList();
+    }
+    function deleteUser(i) {
+      if (!isAdmin()) return;
+      if (confirm("¿Borrar este usuario?")) {
+        users.splice(i, 1);
+        localStorage.setItem('futsalUsers', JSON.stringify(users));
+        renderUsersList();
+      }
+    }
+
     // ==================== VARIABLES ====================
-    let players = [];
-    let trainings = [];
-    let exercises = [];
-    let matches = [];
-    let savedTactics = { drawingData: null, playersOnBoard: [] };
+    let players = JSON.parse(localStorage.getItem('futsalPlayers')) || [];
+    let trainings = JSON.parse(localStorage.getItem('futsalTrainings')) || [];
+    let exercises = JSON.parse(localStorage.getItem('futsalExercises')) || [];
+    let matches = JSON.parse(localStorage.getItem('futsalMatches')) || [];
+    let savedTactics = JSON.parse(localStorage.getItem('futsalTactics')) || { drawingData: null, playersOnBoard: [] };
 
     let canvas, ctx, painting = false;
     let draggedIndex = -1;
     let playersOnBoard = [];
 
-    // ==================== TEMPORIZADOR ====================
+    // ==================== TEMPORIZADOR CON VIBRACIÓN ====================
     let timerInterval = null;
     let timeLeft = 0;
     let isRunning = false;
@@ -315,108 +382,8 @@
     }
 
     function vibrateEnd() {
-      if ('vibrate' in navigator) navigator.vibrate([600, 200, 600]);
-    }
-
-    // ==================== SUPABASE HELPERS ====================
-    async function loadData(table) {
-      const { data } = await supabase.from(table).select('*');
-      return data || [];
-    }
-
-    async function saveData(table, row) {
-      await supabase.from(table).upsert(row);
-    }
-
-    async function deleteData(table, id) {
-      await supabase.from(table).delete().eq('id', id);
-    }
-
-    // ==================== LOGIN ====================
-    function checkLogin() {
-      const username = document.getElementById('usernameInput').value.trim();
-      const password = document.getElementById('passwordInput').value.trim();
-      const user = users.find(u => u.username === username && u.password === password);
-      if (user) {
-        currentUser = user;
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('mainHeader').style.display = 'flex';
-        document.getElementById('mainNav').style.display = 'flex';
-        document.getElementById('timerFloatingBtn').classList.remove('hidden');
-        const adminBtn = document.getElementById('adminBtn');
-        adminBtn.style.display = (user.role === "admin") ? "inline-block" : "none";
-        loadAllData();
-        showSection('players');
-      } else {
-        document.getElementById('loginError').classList.remove('hidden');
-        setTimeout(() => document.getElementById('loginError').classList.add('hidden'), 3000);
-      }
-    }
-
-    async function loadAllData() {
-      players = await loadData('players');
-      trainings = await loadData('trainings');
-      exercises = await loadData('exercises');
-      matches = await loadData('matches');
-      const { data } = await supabase.from('tactics').select('*').limit(1);
-      if (data && data.length) savedTactics = data[0];
-    }
-
-    function logout() {
-      currentUser = null;
-      document.getElementById('mainHeader').style.display = "none";
-      document.getElementById('mainNav').style.display = "none";
-      document.getElementById('timerFloatingBtn').classList.add('hidden');
-      document.getElementById('content').innerHTML = '';
-      document.getElementById('loginScreen').style.display = "flex";
-    }
-
-    function isAdmin() {
-      return currentUser && currentUser.role === "admin";
-    }
-
-    // ==================== ADMIN PANEL ====================
-    function showAdminPanel() {
-      if (!isAdmin()) { alert("Solo el administrador puede acceder aquí"); return; }
-      document.getElementById('adminPanel').classList.remove('hidden');
-      renderUsersList();
-    }
-
-    function closeAdmin() {
-      document.getElementById('adminPanel').classList.add('hidden');
-    }
-
-    function renderUsersList() {
-      const list = document.getElementById('usersList');
-      list.innerHTML = users.map((u, i) => `
-        <div class="bg-gray-700 rounded-2xl p-4 mb-3 flex justify-between items-center">
-          <div>
-            <p class="font-bold">${u.username}</p>
-            <p class="text-xs text-gray-400">${u.role || 'usuario'}</p>
-          </div>
-          ${u.role !== 'admin' ? `<button onclick="deleteUser(${i})" class="px-4 py-2 bg-red-600 rounded-xl text-sm">Borrar</button>` : '<span class="text-green-400">Administrador</span>'}
-        </div>
-      `).join('');
-    }
-
-    function showNewUserForm() {
-      if (!isAdmin()) return;
-      const username = prompt("Nombre del nuevo usuario:");
-      if (!username) return;
-      const password = prompt("Contraseña:");
-      if (!password) return;
-      if (users.find(u => u.username === username)) return alert("Ese usuario ya existe");
-      users.push({ username, password, role: "user" });
-      localStorage.setItem('futsalUsers', JSON.stringify(users));
-      renderUsersList();
-    }
-
-    function deleteUser(i) {
-      if (!isAdmin()) return;
-      if (confirm("¿Borrar este usuario?")) {
-        users.splice(i, 1);
-        localStorage.setItem('futsalUsers', JSON.stringify(users));
-        renderUsersList();
+      if ('vibrate' in navigator) {
+        navigator.vibrate([600, 200, 600]);
       }
     }
 
@@ -485,36 +452,31 @@
       document.getElementById('playerModal').classList.add('hidden');
     }
 
-    document.getElementById('playerForm').addEventListener('submit', async function(e) {
+    document.getElementById('playerForm').addEventListener('submit', function(e) {
       e.preventDefault();
       if (!isAdmin()) return;
       const index = document.getElementById('playerIndex').value;
       const file = document.getElementById('photoInput').files[0];
-      let photo = '';
       if (file) {
         const reader = new FileReader();
-        reader.onload = async ev => {
-          photo = ev.target.result;
-          await savePlayerData(index, photo);
-        };
+        reader.onload = ev => savePlayer(index, ev.target.result);
         reader.readAsDataURL(file);
       } else {
-        photo = players[index] ? players[index].photo : '';
-        await savePlayerData(index, photo);
+        savePlayer(index, players[index] ? players[index].photo : '');
       }
     });
 
-    async function savePlayerData(index, photo) {
+    function savePlayer(index, photo) {
       const player = {
-        id: index !== '' ? players[index].id : undefined,
         name: document.getElementById('pName').value.trim(),
         position: document.getElementById('pPosition').value.trim(),
         number: document.getElementById('pNumber').value,
         notes: document.getElementById('pNotes').value.trim(),
         photo: photo
       };
-      await saveData('players', player);
-      players = await loadData('players');
+      if (index === '') players.push(player);
+      else players[index] = player;
+      localStorage.setItem('futsalPlayers', JSON.stringify(players));
       closePlayerModal();
       showPlayers();
     }
@@ -524,11 +486,11 @@
       openPlayerModal(i);
     }
 
-    async function deletePlayer(i) {
+    function deletePlayer(i) {
       if (!isAdmin()) return;
       if (confirm(`¿Borrar a ${players[i].name}?`)) {
-        await deleteData('players', players[i].id);
-        players = await loadData('players');
+        players.splice(i, 1);
+        localStorage.setItem('futsalPlayers', JSON.stringify(players));
         showPlayers();
       }
     }
@@ -598,7 +560,7 @@
       });
     }
 
-    document.getElementById('trainingForm').addEventListener('submit', async function(e) {
+    document.getElementById('trainingForm').addEventListener('submit', function(e) {
       e.preventDefault();
       if (!isAdmin()) return;
       const selected = [];
@@ -607,7 +569,6 @@
       });
       const index = document.getElementById('trainingIndex').value;
       const training = {
-        id: index !== '' ? trainings[index].id : undefined,
         date: document.getElementById('tDate').value,
         title: document.getElementById('tTitle').value,
         time: document.getElementById('tTime').value,
@@ -615,8 +576,8 @@
         exercises: selected,
         notes: document.getElementById('tNotes').value
       };
-      await saveData('trainings', training);
-      trainings = await loadData('trainings');
+      if (index === '') trainings.push(training); else trainings[index] = training;
+      localStorage.setItem('futsalTrainings', JSON.stringify(trainings));
       closeTrainingModal();
       showTrainings();
     });
@@ -626,11 +587,11 @@
       openTrainingModal(i);
     }
 
-    async function deleteTraining(i) {
+    function deleteTraining(i) {
       if (!isAdmin()) return;
       if (confirm(`¿Borrar "${trainings[i].title}"?`)) {
-        await deleteData('trainings', trainings[i].id);
-        trainings = await loadData('trainings');
+        trainings.splice(i, 1);
+        localStorage.setItem('futsalTrainings', JSON.stringify(trainings));
         showTrainings();
       }
     }
@@ -706,51 +667,42 @@
       document.getElementById('exerciseModal').classList.add('hidden');
     }
 
-    document.getElementById('exerciseForm').addEventListener('submit', async function(e) {
+    document.getElementById('exerciseForm').addEventListener('submit', function(e) {
       e.preventDefault();
       if (!isAdmin()) return;
       const index = document.getElementById('exerciseIndex').value;
       const file = document.getElementById('exPdfInput').files[0];
-      let pdfData = null;
+      const saveExercise = (pdfData) => {
+        const ex = {
+          name: document.getElementById('exName').value.trim(),
+          type: document.getElementById('exType').value.trim(),
+          duration: document.getElementById('exDuration').value,
+          desc: document.getElementById('exDesc').value.trim(),
+          pdf: pdfData || (exercises[index] ? exercises[index].pdf : null)
+        };
+        if (!ex.name) return alert("El nombre es obligatorio");
+        if (index === '') exercises.push(ex); else exercises[index] = ex;
+        localStorage.setItem('futsalExercises', JSON.stringify(exercises));
+        closeExerciseModal();
+        showExercises();
+      };
       if (file) {
         const reader = new FileReader();
-        reader.onload = async ev => {
-          pdfData = ev.target.result;
-          await saveExerciseData(index, pdfData);
-        };
+        reader.onload = ev => saveExercise(ev.target.result);
         reader.readAsDataURL(file);
-      } else {
-        pdfData = exercises[index] ? exercises[index].pdf : null;
-        await saveExerciseData(index, pdfData);
-      }
+      } else saveExercise(null);
     });
-
-    async function saveExerciseData(index, pdfData) {
-      const ex = {
-        id: index !== '' ? exercises[index].id : undefined,
-        name: document.getElementById('exName').value.trim(),
-        type: document.getElementById('exType').value.trim(),
-        duration: document.getElementById('exDuration').value,
-        descripcion: document.getElementById('exDesc').value.trim(),
-        pdf: pdfData
-      };
-      if (!ex.name) return alert("El nombre es obligatorio");
-      await saveData('exercises', ex);
-      exercises = await loadData('exercises');
-      closeExerciseModal();
-      showExercises();
-    }
 
     function editExercise(i) {
       if (!isAdmin()) return;
       openExerciseModal(i);
     }
 
-    async function deleteExercise(i) {
+    function deleteExercise(i) {
       if (!isAdmin()) return;
       if (confirm(`¿Borrar "${exercises[i].name}"?`)) {
-        await deleteData('exercises', exercises[i].id);
-        exercises = await loadData('exercises');
+        exercises.splice(i, 1);
+        localStorage.setItem('futsalExercises', JSON.stringify(exercises));
         showExercises();
       }
     }
@@ -803,12 +755,11 @@
       document.getElementById('matchModal').classList.add('hidden');
     }
 
-    document.getElementById('matchForm').addEventListener('submit', async function(e) {
+    document.getElementById('matchForm').addEventListener('submit', function(e) {
       e.preventDefault();
       if (!isAdmin()) return;
       const index = document.getElementById('matchIndex').value;
       const match = {
-        id: index !== '' ? matches[index].id : undefined,
         date: document.getElementById('mDate').value,
         time: document.getElementById('mTime').value,
         opponent: document.getElementById('mOpponent').value,
@@ -816,8 +767,8 @@
         result: document.getElementById('mResult').value,
         notes: document.getElementById('mNotes').value
       };
-      await saveData('matches', match);
-      matches = await loadData('matches');
+      if (index === '') matches.push(match); else matches[index] = match;
+      localStorage.setItem('futsalMatches', JSON.stringify(matches));
       closeMatchModal();
       showMatches();
     });
@@ -827,11 +778,11 @@
       openMatchModal(i);
     }
 
-    async function deleteMatch(i) {
+    function deleteMatch(i) {
       if (!isAdmin()) return;
       if (confirm(`¿Borrar partido contra ${matches[i].opponent}?`)) {
-        await deleteData('matches', matches[i].id);
-        matches = await loadData('matches');
+        matches.splice(i, 1);
+        localStorage.setItem('futsalMatches', JSON.stringify(matches));
         showMatches();
       }
     }
@@ -949,11 +900,11 @@
       redraw();
     }
 
-    async function saveTactics() {
+    function saveTactics() {
       if (!isAdmin()) { alert("Solo los administradores pueden guardar tácticas"); return; }
       savedTactics.drawingData = canvas.toDataURL('image/png');
       savedTactics.playersOnBoard = [...playersOnBoard];
-      await saveData('tactics', savedTactics);
+      localStorage.setItem('futsalTactics', JSON.stringify(savedTactics));
       const btn = document.createElement('div');
       btn.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#10b981; color:black; padding:12px 24px; border-radius:9999px; font-weight:bold; z-index:999;';
       btn.textContent = '✅ Táctica guardada';
@@ -967,7 +918,7 @@
         playersOnBoard = [];
         savedTactics.drawingData = null;
         savedTactics.playersOnBoard = [];
-        saveData('tactics', savedTactics);
+        localStorage.setItem('futsalTactics', JSON.stringify(savedTactics));
       }
     }
 
