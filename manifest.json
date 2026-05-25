@@ -1,0 +1,17 @@
+{
+  "name": "Futsal Coach Pro",
+  "short_name": "Futsal Coach",
+  "description": "App para el cuerpo técnico de futsal",
+  "start_url": "/futsal/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "campo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
