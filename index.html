@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Futsal Coach Pro">
+  <meta name="theme-color" content="#f59e0b">
+  <link rel="apple-touch-icon" href="campo.jpg">
+  <link rel="manifest" href="manifest.json">
+
+  <title>Futsal Coach Pro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .nav-active { background-color: #f59e0b; color: black; font-weight: bold; }
+    #tacticCanvas {
+      background: url('campo.jpg') center/contain no-repeat !important;
+      background-color: #0f6b2f;
+      border-radius: 20px;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.9);
+      touch-action: none;
+      cursor: crosshair;
+    }
+    body { -webkit-overflow-scrolling: touch; overscroll-behavior: none; }
+    button { cursor: pointer !important; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    
+    .player-photo-container {
+      aspect-ratio: 4 / 5;
+      background-color: #1f2937;
+      overflow: hidden;
+      position: relative;
+    }
+    .player-photo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      transition: transform 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+  <!-- LOGIN -->
+  <div id="loginScreen" class="fixed inset-0 bg-black/95 flex items-center justify-center z-[200]">
+    <div class="bg-gray-800 rounded-3xl p-8 w-full max-w-sm mx-4">
+      <h1 class="text-4xl text-center mb-2">⚽ Futsal Coach Pro</h1>
+      <p class="text-orange-400 text-center mb-8">Solo para el cuerpo técnico</p>
+      <form id="loginForm">
+        <input type="text" id="usernameInput" placeholder="Usuario" class="w-full p-4 bg-gray-700 rounded-2xl mb-3">
+        <input type="password" id="passwordInput" placeholder="Contraseña" class="w-full p-4 bg-gray-700 rounded-2xl mb-6">
+        <button type="submit" class="w-full py-6 bg-orange-600 rounded-2xl font-bold text-2xl">Entrar</button>
+      </form>
+      <p id="loginError" class="text-red-500 text-center mt-4 hidden">Usuario o contraseña incorrectos</p>
+    </div>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div id="adminPanel" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-[210]">
+    <div class="bg-gray-800 rounded-3xl p-8 w-full max-w-md mx-4">
+      <h2 class="text-2xl font-bold mb-6 text-center">👑 Panel de Equipo</h2>
+      <div id="userManagementSection">
+        <h3 class="text-xl font-bold mb-4">👥 Gestión de Usuarios</h3>
+        <div id="usersList" class="mb-6 max-h-80 overflow-auto"></div>
+        <button onclick="showNewUserForm()" class="w-full py-4 bg-green-600 rounded-2xl font-bold mb-6">+ Nuevo Usuario</button>
+      </div>
+      <div class="mt-6 pt-6 border-t border-gray-700">
+        <h3 class="text-xl font-bold mb-4 flex items-center gap-2">📦 Backup y Compartir Datos</h3>
+        <p class="text-sm text-gray-400 mb-6">Exporta todo o importa el archivo que te manden</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="exportData()" class="py-5 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold flex items-center justify-center gap-2">📤 Exportar Backup</button>
+          <button onclick="showImportDialog()" class="py-5 bg-purple-600 hover:bg-purple-500 rounded-2xl font-bold flex items-center justify-center gap-2">📥 Importar Backup</button>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-8">
+        <button onclick="closeAdmin()" class="flex-1 py-4 bg-gray-600 rounded-2xl">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header id="mainHeader" class="hidden bg-orange-600 p-5 sticky top-0 z-50 flex justify-between items-center">
+    <h1 class="text-3xl font-bold">⚽ Futsal Coach</h1>
+    <div class="flex gap-2">
+      <button onclick="showAdminPanel()" id="adminBtn" class="bg-gray-700 px-5 py-2 rounded-2xl text-sm">👑 Panel</button>
+      <button onclick="logout()" class="bg-gray-700 px-5 py-2 rounded-2xl text-sm">Salir</button>
+    </div>
+  </header>
+
+  <!-- Nav -->
+  <nav id="mainNav" class="hidden bg-gray-800 p-2 flex gap-1 sticky top-16 z-40 overflow-x-auto">
+    <button onclick="showSection('players')" id="btn-players" class="nav-active flex-1 py-3 rounded-2xl text-sm">👥 Jugadores</button>
+    <button onclick="showSection('trainings')" id="btn-trainings" class="flex-1 py-3 rounded-2xl text-sm">📅 Entrenos</button>
+    <button onclick="showSection('exercises')" id="btn-exercises" class="flex-1 py-3 rounded-2xl text-sm">🏋️ Ejercicios</button>
+    <button onclick="showSection('tactics')" id="btn-tactics" class="flex-1 py-3 rounded-2xl text-sm">📋 Táctica</button>
+    <button onclick="showSection('matches')" id="btn-matches" class="flex-1 py-3 rounded-2xl text-sm">📆 Partidos</button>
+  </nav>
+
+  <main id="content" class="p-6 pb-20"></main>
+
+  <!-- PIZARRA TÁCTICA -->
+  <div id="tacticsModal" class="hidden fixed inset-0 bg-black/95 flex flex-col z-50">
+    <div class="bg-gray-800 p-4 flex justify-between items-center">
+      <h2 class="text-xl font-bold">Pizarra Táctica</h2>
+      <button onclick="closeTacticsModal()" class="px-6 py-2 bg-green-600 hover:bg-green-500 rounded-xl font-bold flex items-center gap-2">💾 Guardar y Salir</button>
+    </div>
+    <div class="flex-1 flex items-center justify-center p-6 bg-gray-950 overflow-auto">
+      <canvas id="tacticCanvas" width="720" height="480" class="w-full max-w-[720px]"></canvas>
+    </div>
+    <div class="bg-gray-800 p-4 border-t border-gray-700 max-h-[45vh] overflow-y-auto">
+      <div class="flex gap-2 mb-4">
+        <button onclick="setTool('move')" id="tool-move" class="flex-1 py-3 bg-gray-700 rounded-2xl font-bold nav-active">✋ Mover</button>
+        <button onclick="setTool('line')" id="tool-line" class="flex-1 py-3 bg-orange-600 rounded-2xl font-bold">🖌️ Línea libre</button>
+      </div>
+
+      <div class="text-center text-red-400 font-bold mb-2">EQUIPO ROJO (Local)</div>
+      <div class="flex justify-center gap-3 mb-6 flex-wrap">
+        <button onclick="addPlayerMarker('#ef4444', '1')" class="w-11 h-11 rounded-full bg-red-500 text-white font-bold">1</button>
+        <button onclick="addPlayerMarker('#ef4444', '2')" class="w-11 h-11 rounded-full bg-red-500 text-white font-bold">2</button>
+        <button onclick="addPlayerMarker('#ef4444', '3')" class="w-11 h-11 rounded-full bg-red-500 text-white font-bold">3</button>
+        <button onclick="addPlayerMarker('#ef4444', '4')" class="w-11 h-11 rounded-full bg-red-500 text-white font-bold">4</button>
+        <button onclick="addPlayerMarker('#ef4444', '5')" class="w-11 h-11 rounded-full bg-red-500 text-white font-bold">5</button>
+      </div>
+      <div class="text-center text-yellow-400 font-bold mb-2">EQUIPO AMARILLO (Visitante)</div>
+      <div class="flex justify-center gap-3 flex-wrap">
+        <button onclick="addPlayerMarker('#eab308', '6')" class="w-11 h-11 rounded-full bg-yellow-500 text-black font-bold">6</button>
+        <button onclick="addPlayerMarker('#eab308', '7')" class="w-11 h-11 rounded-full bg-yellow-500 text-black font-bold">7</button>
+        <button onclick="addPlayerMarker('#eab308', '8')" class="w-11 h-11 rounded-full bg-yellow-500 text-black font-bold">8</button>
+        <button onclick="addPlayerMarker('#eab308', '9')" class="w-11 h-11 rounded-full bg-yellow-500 text-black font-bold">9</button>
+        <button onclick="addPlayerMarker('#eab308', '10')" class="w-11 h-11 rounded-full bg-yellow-500 text-black font-bold">10</button>
+      </div>
+
+      <button onclick="addBall()" class="mt-4 w-full py-3 bg-yellow-500 text-black rounded-2xl font-bold flex items-center justify-center gap-2">⚽ Añadir Balón</button>
+      <button onclick="saveNewTactic()" class="mt-3 w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold">💾 Guardar como nueva táctica</button>
+      <button onclick="saveTactics()" class="mt-3 w-full py-3 bg-green-600 rounded-2xl font-bold">💾 Guardar cambios en táctica actual</button>
+
+      <!-- SECCIÓN TÁCTICAS GUARDADAS -->
+      <div class="mt-8 border-t border-gray-600 pt-6">
+        <h3 class="font-bold text-lg mb-3 flex items-center gap-2">📋 Tácticas Guardadas</h3>
+        <div id="savedTacticsList" class="max-h-64 overflow-auto space-y-2"></div>
+      </div>
+
+      <button onclick="clearBoard()" class="mt-6 w-full py-4 bg-red-700 hover:bg-red-600 rounded-3xl font-bold text-lg shadow-inner">🧹 LIMPIAR TODO EL CAMPO</button>
+    </div>
+  </div>
+
+  <!-- Modal Jugadores -->
+  <div id="playerModal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-3xl w-full max-w-md mx-4 p-6">
+      <h2 id="playerTitle" class="text-2xl font-bold mb-5">Nuevo Jugador</h2>
+      <form id="playerForm">
+        <input type="hidden" id="playerIndex">
+        <label class="block mb-2 font-medium">Fotos del jugador (puedes subir varias)</label>
+        <input type="file" id="photoInput" accept="image/*" multiple class="block w-full mb-4 bg-gray-700 rounded-2xl p-3">
+        <div id="photoPreviewContainer" class="grid grid-cols-3 gap-3 mb-6 max-h-64 overflow-auto"></div>
+
+        <input type="text" id="pName" placeholder="Nombre completo" class="w-full p-4 mb-4 bg-gray-700 rounded-2xl" required>
+        <div class="grid grid-cols-2 gap-4">
+          <input type="text" id="pPosition" placeholder="Posición" class="p-4 bg-gray-700 rounded-2xl">
+          <input type="number" id="pNumber" placeholder="Dorsal" class="p-4 bg-gray-700 rounded-2xl">
+        </div>
+        <textarea id="pNotes" placeholder="Notas, lesiones..." class="w-full p-4 mt-4 bg-gray-700 rounded-3xl h-28"></textarea>
+        <div class="flex gap-4 mt-8">
+          <button type="button" onclick="closePlayerModal()" class="flex-1 py-4 bg-gray-600 rounded-2xl font-bold">Cancelar</button>
+          <button type="submit" class="flex-1 py-4 bg-orange-600 rounded-2xl font-bold">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FICHA DETALLE DEL JUGADOR -->
+  <div id="playerDetailModal" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-[60]">
+    <div class="bg-gray-800 rounded-3xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-auto">
+      <div class="flex justify-between items-center mb-6">
+        <h2 id="detailName" class="text-2xl font-bold"></h2>
+        <button onclick="closePlayerDetailModal()" class="text-3xl text-red-500">✕</button>
+      </div>
+      <div id="detailPhotoGallery" class="grid grid-cols-2 gap-3 mb-6"></div>
+      <div class="flex justify-between items-center mb-4">
+        <span id="detailPosition" class="text-orange-400 text-xl"></span>
+        <span id="detailNumber" class="bg-orange-600 text-white text-xl font-bold px-5 py-1 rounded-2xl"></span>
+      </div>
+      <h3 class="font-bold text-lg mb-2">📝 Observaciones y notas</h3>
+      <div id="detailNotes" class="bg-gray-700 rounded-3xl p-5 text-gray-300 whitespace-pre-wrap min-h-[120px]"></div>
+      <div class="flex gap-3 mt-8">
+        <button onclick="closePlayerDetailModal()" class="flex-1 py-4 bg-gray-600 rounded-2xl font-bold">Cerrar</button>
+        <button onclick="editFromDetail()" id="detailEditBtn" class="flex-1 py-4 bg-orange-600 rounded-2xl font-bold">Editar Jugador</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Visor PDF -->
+  <div id="pdfViewerModal" class="hidden fixed inset-0 bg-black/95 flex flex-col z-[500]">
+    <div class="bg-gray-800 p-4 flex justify-between items-center border-b border-gray-700">
+      <h2 id="pdfTitle" class="text-xl font-bold">Visor de Ejercicio</h2>
+      <button onclick="closePdfModal()" class="px-6 py-2 bg-red-600 rounded-xl font-bold">✕ Cerrar</button>
+    </div>
+    <div class="flex-1 p-4 bg-gray-950 flex items-center justify-center overflow-hidden">
+      <iframe id="pdfIframe" class="w-full h-full rounded-3xl" style="max-height: 88vh; background:white;"></iframe>
+    </div>
+  </div>
+
+  <!-- Modal Temporizador -->
+  <div id="timerModal" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-[300]">
+    <div class="bg-gray-800 rounded-3xl w-full max-w-md mx-4 p-8">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-3xl font-bold">⏰ Temporizador</h2>
+        <button onclick="closeTimerModal()" class="text-4xl text-red-500">✕</button>
+      </div>
+      <div id="timerDisplay" class="text-8xl font-mono text-center tracking-widest bg-gray-900 rounded-3xl py-8 mb-8">00:00</div>
+      <div class="grid grid-cols-9 gap-2 mb-8">
+        <button onclick="setPreset(1)" class="py-3 bg-gray-700 hover:bg-orange-600 rounded-2xl font-bold">1</button>
+        <button onclick="setPreset(2)" class="py-3 bg-gray-700 hover:bg-orange-600 rounded-2xl font-bold">2</button>
+        <button onclick="setPreset(3)" class="py-3 bg-gray-700 hover:bg-orange-600 rounded-2xl font-bold">3</button>
+        <button onclick="setPreset(4)" class="py-3 bg-gray-700 hover:bg-orange-600 rounded-2xl font-bold">4</button>
+        <button onclick="setPreset(5)" class="py-3 bg-gray-700 hover:bg-orange-600 rounded-2xl font-bold">5</button>
+        <button onclick="setPreset(10)" class="py-3 bg-gray-700 hover:bg-orange-600 rounded-2xl font-bold">10</button>
+        <button onclick="setPreset(15)" class="py-3 bg-gray-700 hover:bg-orange-600 rounded-2xl font-bold">15</button>
+        <button onclick="setPreset(20)" class="py-3 bg-gray-700 hover:bg-orange-600 rounded-2xl font-bold">20</button>
+        <button onclick="setPreset(25)" class="py-3 bg-gray-700 hover:bg-orange-600 rounded-2xl font-bold">25</button>
+      </div>
+      <div class="flex gap-4">
+        <button onclick="resetTimer()" class="flex-1 py-5 bg-gray-600 rounded-3xl font-bold text-xl">Reset</button>
+        <button onclick="toggleTimer()" id="startPauseBtn" class="flex-1 py-5 bg-orange-600 rounded-3xl font-bold text-xl">▶️ Iniciar</button>
+      </div>
+      <p class="text-center text-gray-400 text-sm mt-6">Presiona los números para cargar minutos</p>
+    </div>
+  </div>
+
+  <!-- Botón flotante temporizador -->
+  <button onclick="openTimerModal()" id="timerFloatingBtn" class="hidden fixed bottom-6 right-6 w-16 h-16 bg-orange-600 hover:bg-orange-500 text-white rounded-full shadow-2xl flex items-center justify-center text-4xl z-[400]">⏰</button>
+
+  <script>
+    // ==================== HASH DE CONTRASEÑAS ====================
+    async function hashPassword(password) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // ==================== USUARIOS ====================
+    let users = JSON.parse(localStorage.getItem('futsalUsers')) || [
+      { username: "Sebas", password: "f18dee6116d0c86a0178ad1ec9a534b653469d683dfe859e721084b976096ae1", role: "admin" },
+      { username: "Pep", password: "069da696bd97ea88d9bdde8d7e43486308dc6c2e93fa4144e9a74c41e8ef135c", role: "user" },
+      { username: "Rafa", password: "598c45bc35815ddca4b79bed428c187bb483a0cbfdc1da0451f582e30192ad8b", role: "user" }
+    ];
+
+    let currentUser = null;
+
+    async function checkLogin() {
+      const username = document.getElementById('usernameInput').value.trim();
+      const passwordInput = document.getElementById('passwordInput').value.trim();
+      const hashedInput = await hashPassword(passwordInput);
+      const user = users.find(u => u.username === username && u.password === hashedInput);
+      if (user) {
+        currentUser = user;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('mainHeader').style.display = 'flex';
+        document.getElementById('mainNav').style.display = 'flex';
+        document.getElementById('timerFloatingBtn').classList.remove('hidden');
+        document.getElementById('adminBtn').style.display = "inline-block";
+        showSection('players');
+      } else {
+        document.getElementById('loginError').classList.remove('hidden');
+        setTimeout(() => document.getElementById('loginError').classList.add('hidden'), 3000);
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('mainHeader').style.display = "none";
+      document.getElementById('mainNav').style.display = "none";
+      document.getElementById('timerFloatingBtn').classList.add('hidden');
+      document.getElementById('content').innerHTML = '';
+      document.getElementById('loginScreen').style.display = "flex";
+    }
+
+    function isAdmin() {
+      return currentUser && currentUser.role === "admin";
+    }
+
+    // ==================== ADMIN PANEL ====================
+    function showAdminPanel() {
+      document.getElementById('adminPanel').classList.remove('hidden');
+      renderUsersList();
+    }
+    function closeAdmin() { document.getElementById('adminPanel').classList.add('hidden'); }
+
+    function renderUsersList() {
+      const list = document.getElementById('usersList');
+      const managementSection = document.getElementById('userManagementSection');
+      if (!isAdmin()) {
+        managementSection.style.display = "none";
+        return;
+      }
+      managementSection.style.display = "block";
+      list.innerHTML = users.map((u, i) => `
+        <div class="bg-gray-700 rounded-2xl p-4 mb-3 flex justify-between items-center">
+          <div>
+            <p class="font-bold">${u.username}</p>
+            <p class="text-xs text-gray-400">${u.role || 'usuario'}</p>
+          </div>
+          ${u.role !== 'admin' ? `<button onclick="deleteUser(${i})" class="px-4 py-2 bg-red-600 rounded-xl text-sm">Borrar</button>` : '<span class="text-green-400">Administrador</span>'}
+        </div>
+      `).join('');
+    }
+
+    async function showNewUserForm() {
+      if (!isAdmin()) return;
+      const username = prompt("Nombre del nuevo usuario:");
+      if (!username) return;
+      const password = prompt("Contraseña:");
+      if (!password) return;
+      if (users.find(u => u.username === username)) return alert("Ese usuario ya existe");
+      const hashedPassword = await hashPassword(password);
+      users.push({ username, password: hashedPassword, role: "user" });
+      localStorage.setItem('futsalUsers', JSON.stringify(users));
+      renderUsersList();
+    }
+
+    function deleteUser(i) {
+      if (!isAdmin()) return;
+      if (confirm("¿Borrar este usuario?")) {
+        users.splice(i, 1);
+        localStorage.setItem('futsalUsers', JSON.stringify(users));
+        renderUsersList();
+      }
+    }
+
+    // ==================== VARIABLES ====================
+    let players = JSON.parse(localStorage.getItem('futsalPlayers')) || [];
+    let trainings = JSON.parse(localStorage.getItem('futsalTrainings')) || [];
+    let exercises = JSON.parse(localStorage.getItem('futsalExercises')) || [];
+    let matches = JSON.parse(localStorage.getItem('futsalMatches')) || [];
+    let savedTactics = JSON.parse(localStorage.getItem('futsalSavedTactics')) || [];
+
+    // Migración foto única → array
+    players.forEach(p => {
+      if (p.photo && (!p.photos || p.photos.length === 0)) {
+        p.photos = [p.photo];
+        delete p.photo;
+      }
+      if (!p.photos) p.photos = [];
+    });
+    localStorage.setItem('futsalPlayers', JSON.stringify(players));
+
+    // ==================== PIZARRA TÁCTICA ====================
+    let canvas, ctx;
+    let playersOnBoard = [];
+    let ball = null;
+    let drawings = [];
+    let currentTool = 'move';
+    let painting = false;
+    let draggedIndex = -1;
+    let isDragging = false;
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.getElementById('tool-move').classList.toggle('nav-active', tool === 'move');
+      document.getElementById('tool-line').classList.toggle('nav-active', tool === 'line');
+    }
+
+    function initCanvas() {
+      canvas = document.getElementById('tacticCanvas');
+      ctx = canvas.getContext('2d');
+      ctx.lineWidth = 8;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#f59e0b';
+
+      canvas.addEventListener('mousedown', startInteraction);
+      canvas.addEventListener('mousemove', moveInteraction);
+      canvas.addEventListener('mouseup', endInteraction);
+      canvas.addEventListener('mouseleave', endInteraction);
+      canvas.addEventListener('touchstart', startInteraction);
+      canvas.addEventListener('touchmove', moveInteraction);
+      canvas.addEventListener('touchend', endInteraction);
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function getPlayerAt(x, y) {
+      for (let i = playersOnBoard.length - 1; i >= 0; i--) {
+        const p = playersOnBoard[i];
+        const dx = x - p.x;
+        const dy = y - p.y;
+        if (dx * dx + dy * dy < 625) return i;
+      }
+      if (ball) {
+        const dx = x - ball.x;
+        const dy = y - ball.y;
+        if (dx * dx + dy * dy < 81) return -2;
+      }
+      return -1;
+    }
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 8;
+      drawings.forEach(path => {
+        if (path.points.length < 1) return;
+        ctx.beginPath();
+        ctx.moveTo(path.points[0].x, path.points[0].y);
+        for (let i = 1; i < path.points.length; i++) {
+          ctx.lineTo(path.points[i].x, path.points[i].y);
+        }
+        ctx.stroke();
+      });
+
+      playersOnBoard.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = (p.color === '#eab308') ? 'black' : 'white';
+        ctx.font = 'bold 11px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.number, p.x, p.y);
+      });
+
+      if (ball) {
+        ctx.fillStyle = '#1e2937';
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    }
+
+    function startInteraction(e) {
+      e.preventDefault();
+      const pos = getPos(e);
+      draggedIndex = getPlayerAt(pos.x, pos.y);
+      if (draggedIndex >= 0 || draggedIndex === -2) {
+        isDragging = true;
+        return;
+      }
+      if (currentTool === 'line') {
+        painting = true;
+        drawings.push({ points: [pos] });
+      }
+    }
+
+    function moveInteraction(e) {
+      e.preventDefault();
+      const pos = getPos(e);
+      if (isDragging && draggedIndex >= 0) {
+        playersOnBoard[draggedIndex].x = pos.x;
+        playersOnBoard[draggedIndex].y = pos.y;
+        drawCanvas();
+      } else if (isDragging && draggedIndex === -2 && ball) {
+        ball.x = pos.x;
+        ball.y = pos.y;
+        drawCanvas();
+      } else if (painting) {
+        drawings[drawings.length - 1].points.push(pos);
+        drawCanvas();
+      }
+    }
+
+    function endInteraction(e) {
+      const pos = getPos(e || {});
+      if (isDragging) {
+        if (draggedIndex >= 0) {
+          const p = playersOnBoard[draggedIndex];
+          if (p.x < -20 || p.x > canvas.width + 20 || p.y < -20 || p.y > canvas.height + 20) {
+            playersOnBoard.splice(draggedIndex, 1);
+          }
+        } else if (draggedIndex === -2 && ball) {
+          if (ball.x < -20 || ball.x > canvas.width + 20 || ball.y < -20 || ball.y > canvas.height + 20) {
+            ball = null;
+          }
+        }
+      }
+      draggedIndex = -1;
+      isDragging = false;
+      painting = false;
+      drawCanvas();
+    }
+
+    function addPlayerMarker(color, number) {
+      const centerX = canvas.width / 2 + (Math.random() * 80 - 40);
+      const centerY = canvas.height / 2 + (Math.random() * 80 - 40);
+      playersOnBoard.push({ x: centerX, y: centerY, color, number });
+      drawCanvas();
+    }
+
+    function addBall() {
+      const centerX = canvas.width / 2 + (Math.random() * 100 - 50);
+      const centerY = canvas.height / 2 + (Math.random() * 100 - 50);
+      ball = { x: centerX, y: centerY };
+      drawCanvas();
+    }
+
+    function loadTactics(tactic) {
+      drawings = tactic.drawings || [];
+      playersOnBoard = tactic.playersOnBoard || [];
+      ball = tactic.ball || null;
+      drawCanvas();
+    }
+
+    function saveTactics() {
+      if (!isAdmin()) return alert("Solo los administradores pueden guardar tácticas");
+      const savedTacticsObj = { drawings, playersOnBoard, ball };
+      localStorage.setItem('futsalTactics', JSON.stringify(savedTacticsObj));
+      const btn = document.createElement('div');
+      btn.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#10b981; color:black; padding:12px 24px; border-radius:9999px; font-weight:bold; z-index:999;';
+      btn.textContent = '✅ Táctica guardada';
+      document.body.appendChild(btn);
+      setTimeout(() => btn.remove(), 2000);
+    }
+
+    function saveNewTactic() {
+      if (!isAdmin()) return alert("Solo los administradores pueden guardar tácticas");
+      const name = prompt("Nombre de la táctica:", "Táctica " + new Date().toLocaleDateString('es-ES'));
+      if (!name) return;
+
+      const newTactic = {
+        id: Date.now(),
+        name: name,
+        date: new Date().toLocaleDateString('es-ES'),
+        drawings: JSON.parse(JSON.stringify(drawings)),
+        playersOnBoard: JSON.parse(JSON.stringify(playersOnBoard)),
+        ball: ball ? { ...ball } : null
+      };
+
+      savedTactics.unshift(newTactic);
+      localStorage.setItem('futsalSavedTactics', JSON.stringify(savedTactics));
+      renderSavedTacticsList();
+      alert('✅ Táctica guardada como "' + name + '"');
+    }
+
+    function renderSavedTacticsList() {
+      const container = document.getElementById('savedTacticsList');
+      container.innerHTML = savedTactics.length === 0 
+        ? `<p class="text-gray-400 text-sm py-4">Aún no hay tácticas guardadas</p>` 
+        : '';
+
+      savedTactics.forEach((t, index) => {
+        const div = document.createElement('div');
+        div.className = "bg-gray-700 rounded-2xl p-4 flex justify-between items-center";
+        div.innerHTML = `
+          <div>
+            <p class="font-bold">${t.name}</p>
+            <p class="text-xs text-gray-400">${t.date}</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="loadSavedTactic(${index}); event.stopImmediatePropagation()" class="px-4 py-1 bg-green-600 rounded-xl text-sm">Cargar</button>
+            <button onclick="renameSavedTactic(${index}); event.stopImmediatePropagation()" class="px-4 py-1 bg-yellow-600 rounded-xl text-sm">Renombrar</button>
+            <button onclick="deleteSavedTactic(${index}); event.stopImmediatePropagation()" class="px-4 py-1 bg-red-600 rounded-xl text-sm">Borrar</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function loadSavedTactic(index) {
+      const tactic = savedTactics[index];
+      if (!tactic) return;
+      loadTactics(tactic);
+      alert('✅ Táctica "' + tactic.name + '" cargada');
+    }
+
+    function renameSavedTactic(index) {
+      if (!isAdmin()) return;
+      const tactic = savedTactics[index];
+      const newName = prompt("Nuevo nombre de la táctica:", tactic.name);
+      if (newName && newName.trim() !== '') {
+        tactic.name = newName.trim();
+        localStorage.setItem('futsalSavedTactics', JSON.stringify(savedTactics));
+        renderSavedTacticsList();
+      }
+    }
+
+    function deleteSavedTactic(index) {
+      if (!isAdmin()) return;
+      if (confirm("¿Borrar esta táctica?")) {
+        savedTactics.splice(index, 1);
+        localStorage.setItem('futsalSavedTactics', JSON.stringify(savedTactics));
+        renderSavedTacticsList();
+      }
+    }
+
+    function clearBoard() {
+      if (confirm("¿Borrar toda la pizarra?")) {
+        drawings = [];
+        playersOnBoard = [];
+        ball = null;
+        drawCanvas();
+      }
+    }
+
+    function openTacticsModal() {
+      document.getElementById('tacticsModal').classList.remove('hidden');
+      setTimeout(() => {
+        initCanvas();
+        const lastTactic = JSON.parse(localStorage.getItem('futsalTactics')) || { drawings: [], playersOnBoard: [], ball: null };
+        drawings = lastTactic.drawings || [];
+        playersOnBoard = lastTactic.playersOnBoard || [];
+        ball = lastTactic.ball || null;
+        drawCanvas();
+        setTool('move');
+        renderSavedTacticsList();
+      }, 100);
+    }
+
+    function closeTacticsModal() {
+      if (isAdmin()) saveTactics();
+      document.getElementById('tacticsModal').classList.add('hidden');
+    }
+
+    // ==================== TEMPORIZADOR ====================
+    let timerInterval = null;
+    let timeLeft = 0;
+    let isRunning = false;
+
+    function openTimerModal() {
+      document.getElementById('timerModal').classList.remove('hidden');
+      updateTimerDisplay();
+    }
+
+    function closeTimerModal() {
+      pauseTimer();
+      document.getElementById('timerModal').classList.add('hidden');
+    }
+
+    function updateTimerDisplay() {
+      const minutes = Math.floor(timeLeft / 60);
+      const seconds = timeLeft % 60;
+      document.getElementById('timerDisplay').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function setPreset(minutes) {
+      timeLeft = minutes * 60;
+      updateTimerDisplay();
+      if (isRunning) pauseTimer();
+    }
+
+    function toggleTimer() {
+      if (isRunning) pauseTimer(); else startTimer();
+    }
+
+    function startTimer() {
+      if (timeLeft <= 0) return;
+      isRunning = true;
+      document.getElementById('startPauseBtn').innerHTML = '⏸️ Pausar';
+      timerInterval = setInterval(() => {
+        if (timeLeft > 0) {
+          timeLeft--;
+          updateTimerDisplay();
+        } else {
+          pauseTimer();
+          beepSound();
+          vibrateEnd();
+          alert("¡Tiempo terminado! ⚽");
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      isRunning = false;
+      clearInterval(timerInterval);
+      document.getElementById('startPauseBtn').innerHTML = '▶️ Iniciar';
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      timeLeft = 0;
+      updateTimerDisplay();
+    }
+
+    function beepSound() {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+      oscillator.connect(audioCtx.destination);
+      oscillator.start();
+      setTimeout(() => oscillator.stop(), 800);
+    }
+
+    function vibrateEnd() {
+      if ('vibrate' in navigator) navigator.vibrate([600, 200, 600]);
+    }
+
+    // ==================== VISOR PDF ====================
+    function showPdfModal(title, pdfDataUrl) {
+      document.getElementById('pdfTitle').textContent = title;
+      document.getElementById('pdfIframe').src = pdfDataUrl;
+      document.getElementById('pdfViewerModal').classList.remove('hidden');
+    }
+
+    function closePdfModal() {
+      document.getElementById('pdfIframe').src = '';
+      document.getElementById('pdfViewerModal').classList.add('hidden');
+    }
+
+    function openPdf(ex) {
+      if (!ex || !ex.pdf) return alert("Este ejercicio no tiene PDF");
+      showPdfModal(ex.name, ex.pdf);
+    }
+
+    function openPdfFromTraining(exName) {
+      const ex = exercises.find(e => e.name === exName);
+      if (ex && ex.pdf) showPdfModal(ex.name, ex.pdf);
+      else alert("Este ejercicio no tiene PDF");
+    }
+
+    // ==================== MÚLTIPLES FOTOS ====================
+    let currentPhotos = [];
+
+    function renderPhotoPreviews() {
+      const container = document.getElementById('photoPreviewContainer');
+      container.innerHTML = '';
+      currentPhotos.forEach((photo, i) => {
+        const div = document.createElement('div');
+        div.className = 'relative group';
+        div.innerHTML = `
+          <div class="aspect-square overflow-hidden rounded-2xl border-2 border-gray-600 shadow-inner">
+            <img src="${photo}" class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300">
+          </div>
+          <button onclick="removePhoto(${i}); event.stopImmediatePropagation()" class="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white text-xs w-7 h-7 rounded-full flex items-center justify-center shadow-lg">✕</button>
+        `;
+        container.appendChild(div);
+      });
+      if (currentPhotos.length === 0) {
+        container.innerHTML = `<p class="col-span-3 text-center text-gray-400 py-8 text-sm">Aún no hay fotos</p>`;
+      }
+    }
+
+    function removePhoto(i) {
+      currentPhotos.splice(i, 1);
+      renderPhotoPreviews();
+    }
+
+    function openPlayerModal(index = null) {
+      if (!isAdmin()) return alert("Solo los administradores pueden crear o editar jugadores");
+      document.getElementById('playerModal').classList.remove('hidden');
+      document.getElementById('playerForm').reset();
+      document.getElementById('playerIndex').value = index !== null ? index : '';
+      document.getElementById('playerTitle').textContent = index !== null ? "Editar Jugador" : "Nuevo Jugador";
+
+      currentPhotos = index !== null && players[index] && players[index].photos ? [...players[index].photos] : [];
+      renderPhotoPreviews();
+      document.getElementById('photoInput').value = '';
+    }
+
+    function closePlayerModal() {
+      document.getElementById('playerModal').classList.add('hidden');
+      currentPhotos = [];
+    }
+
+    document.getElementById('photoInput').addEventListener('change', function(e) {
+      const files = e.target.files;
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          currentPhotos.push(ev.target.result);
+          renderPhotoPreviews();
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    document.getElementById('playerForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!isAdmin()) return;
+      const index = document.getElementById('playerIndex').value;
+      const player = {
+        name: document.getElementById('pName').value.trim(),
+        position: document.getElementById('pPosition').value.trim(),
+        number: document.getElementById('pNumber').value,
+        notes: document.getElementById('pNotes').value.trim(),
+        photos: [...currentPhotos]
+      };
+      if (index === '') players.push(player);
+      else players[index] = player;
+      localStorage.setItem('futsalPlayers', JSON.stringify(players));
+      closePlayerModal();
+      showPlayers();
+    });
+
+    // ==================== FICHA DETALLE JUGADOR ====================
+    function showPlayerDetail(i) {
+      const p = players[i];
+      if (!p) return;
+
+      document.getElementById('detailName').textContent = p.name;
+      document.getElementById('detailPosition').textContent = p.position || 'Sin posición';
+      document.getElementById('detailNumber').textContent = p.number || '-';
+      document.getElementById('detailNotes').innerHTML = p.notes ? p.notes.replace(/\n/g, '<br>') : '<span class="text-gray-500">Sin observaciones</span>';
+
+      const gallery = document.getElementById('detailPhotoGallery');
+      gallery.innerHTML = '';
+      if (p.photos && p.photos.length) {
+        p.photos.forEach(photo => {
+          const div = document.createElement('div');
+          div.className = 'aspect-square overflow-hidden rounded-2xl border border-gray-600';
+          div.innerHTML = `<img src="${photo}" class="w-full h-full object-cover object-center">`;
+          gallery.appendChild(div);
+        });
+      } else {
+        gallery.innerHTML = `<div class="col-span-2 text-center py-12 text-gray-400">Sin fotos</div>`;
+      }
+
+      const editBtn = document.getElementById('detailEditBtn');
+      editBtn.style.display = isAdmin() ? 'block' : 'none';
+      editBtn.onclick = () => { closePlayerDetailModal(); editPlayer(i); };
+
+      document.getElementById('playerDetailModal').classList.remove('hidden');
+    }
+
+    function closePlayerDetailModal() {
+      document.getElementById('playerDetailModal').classList.add('hidden');
+    }
+
+    // ==================== SECCIONES ====================
+    function showSection(section) {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('nav-active'));
+      document.getElementById('btn-' + section).classList.add('nav-active');
+      if (section === 'players') showPlayers();
+      else if (section === 'trainings') showTrainings();
+      else if (section === 'exercises') showExercises();
+      else if (section === 'tactics') showTactics();
+      else if (section === 'matches') showMatches();
+    }
+
+    function showPlayers() {
+      const admin = isAdmin();
+      document.getElementById('content').innerHTML = `
+        <div class="flex justify-between mb-6">
+          <h2 class="text-3xl font-bold">Plantilla (${players.length})</h2>
+          ${admin ? `<button onclick="openPlayerModal()" class="bg-orange-600 px-6 py-3 rounded-2xl font-bold">➕ Nuevo Jugador</button>` : ''}
+        </div>
+        <div id="playersGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+      `;
+      renderPlayers();
+    }
+
+    function renderPlayers() {
+      const grid = document.getElementById('playersGrid');
+      grid.innerHTML = players.length === 0 ? `<p class="text-center py-12 text-gray-400">Aún no hay jugadores</p>` : '';
+      const admin = isAdmin();
+      players.forEach((p, i) => {
+        const mainPhoto = p.photos && p.photos.length > 0 ? p.photos[0] : null;
+        const extra = p.photos ? p.photos.length - 1 : 0;
+        const div = document.createElement('div');
+        div.className = "bg-gray-800 rounded-3xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-orange-500 transition";
+        div.onclick = (e) => {
+          if (!e.target.closest('button')) showPlayerDetail(i);
+        };
+        let buttons = admin ? `<div class="flex gap-3 mt-4"><button onclick="editPlayer(${i});event.stopImmediatePropagation()" class="flex-1 py-3 bg-gray-700 rounded-2xl">Editar</button><button onclick="deletePlayer(${i});event.stopImmediatePropagation()" class="flex-1 py-3 bg-red-900 rounded-2xl">Borrar</button></div>` : '';
+        div.innerHTML = `
+          <div class="player-photo-container">
+            ${mainPhoto ? `<img src="${mainPhoto}" class="player-photo">` : `<div class="w-full h-full flex items-center justify-center text-8xl bg-gray-600">👤</div>`}
+            ${extra > 0 ? `<div class="absolute bottom-4 right-4 bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-3xl shadow-md">+${extra}</div>` : ''}
+          </div>
+          <div class="p-5">
+            <div class="flex justify-between">
+              <h3 class="font-bold">${p.name}</h3>
+              <span class="bg-orange-600 px-4 py-1 rounded-2xl">${p.number || '-'}</span>
+            </div>
+            <p class="text-orange-400">${p.position || ''}</p>
+            ${p.notes ? `<p class="text-sm text-gray-400 mt-2 line-clamp-2">${p.notes}</p>` : ''}
+            ${buttons}
+          </div>
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    function editPlayer(i) {
+      if (isAdmin()) openPlayerModal(i);
+    }
+
+    function deletePlayer(i) {
+      if (!isAdmin()) return;
+      if (confirm(`¿Borrar a ${players[i].name}?`)) {
+        players.splice(i, 1);
+        localStorage.setItem('futsalPlayers', JSON.stringify(players));
+        showPlayers();
+      }
+    }
+
+    // ==================== ENTRENOS ====================
+    function showTrainings() {
+      const admin = isAdmin();
+      document.getElementById('content').innerHTML = `
+        <div class="flex justify-between mb-6">
+          <h2 class="text-3xl font-bold">Entrenamientos (${trainings.length})</h2>
+          ${admin ? `<button onclick="openTrainingModal()" class="bg-orange-600 px-6 py-3 rounded-2xl font-bold">➕ Nuevo</button>` : ''}
+        </div>
+        <div id="trainingsList" class="space-y-4"></div>
+      `;
+      renderTrainings();
+    }
+
+    function renderTrainings() {
+      const container = document.getElementById('trainingsList');
+      container.innerHTML = trainings.length === 0 ? `<p class="text-center py-12 text-gray-400">Aún no hay entrenamientos</p>` : '';
+      const admin = isAdmin();
+      trainings.forEach((t, i) => {
+        const div = document.createElement('div');
+        div.className = "bg-gray-800 rounded-3xl p-6 cursor-pointer";
+        let buttons = admin ? `<div class="flex gap-3 mt-5"><button onclick="showTrainingDetail(${i}); event.stopImmediatePropagation()" class="flex-1 py-3 bg-orange-600 rounded-2xl font-bold">👁️ Ver Detalle</button><button onclick="editTraining(${i}); event.stopImmediatePropagation()" class="flex-1 py-3 bg-gray-700 rounded-2xl">Editar</button><button onclick="deleteTraining(${i}); event.stopImmediatePropagation()" class="flex-1 py-3 bg-red-900 rounded-2xl">Borrar</button></div>` : `<button onclick="showTrainingDetail(${i}); event.stopImmediatePropagation()" class="w-full py-3 bg-orange-600 rounded-2xl font-bold mt-5">👁️ Ver Detalle</button>`;
+        div.innerHTML = `
+          <div class="flex justify-between text-orange-400 text-sm">
+            <span>${t.date}</span>
+            <span>${t.duration ? t.duration + ' min' : ''}</span>
+          </div>
+          <h3 class="font-bold text-xl mt-2">${t.title}</h3>
+          ${buttons}
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function openTrainingModal(index = null) {
+      if (!isAdmin()) return alert("Solo los administradores pueden crear o editar entrenamientos");
+      document.getElementById('trainingModal').classList.remove('hidden');
+      document.getElementById('trainingForm').reset();
+      document.getElementById('trainingIndex').value = index !== null ? index : '';
+      renderExerciseSelector();
+    }
+
+    function closeTrainingModal() {
+      document.getElementById('trainingModal').classList.add('hidden');
+    }
+
+    function renderExerciseSelector() {
+      const container = document.getElementById('exerciseSelector');
+      container.innerHTML = '';
+      if (exercises.length === 0) {
+        container.innerHTML = `<p class="text-gray-400 p-3">Primero crea ejercicios</p>`;
+        return;
+      }
+      exercises.forEach((ex, i) => {
+        const div = document.createElement('div');
+        div.className = "flex items-center gap-3 p-3 hover:bg-gray-600 rounded-xl";
+        div.innerHTML = `<input type="checkbox" id="chk-${i}" class="w-5 h-5 accent-orange-500"><div><p class="font-medium">${ex.name}</p><p class="text-xs text-gray-400">${ex.type || ''}</p></div>`;
+        container.appendChild(div);
+      });
+    }
+
+    document.getElementById('trainingForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!isAdmin()) return;
+      const selected = [];
+      exercises.forEach((_, i) => {
+        if (document.getElementById(`chk-${i}`) && document.getElementById(`chk-${i}`).checked) selected.push(exercises[i].name);
+      });
+      const index = document.getElementById('trainingIndex').value;
+      const training = {
+        date: document.getElementById('tDate').value,
+        title: document.getElementById('tTitle').value,
+        time: document.getElementById('tTime').value,
+        duration: document.getElementById('tDuration').value,
+        exercises: selected,
+        notes: document.getElementById('tNotes').value
+      };
+      if (index === '') trainings.push(training); else trainings[index] = training;
+      localStorage.setItem('futsalTrainings', JSON.stringify(trainings));
+      closeTrainingModal();
+      showTrainings();
+    });
+
+    function editTraining(i) {
+      if (!isAdmin()) return;
+      openTrainingModal(i);
+    }
+
+    function deleteTraining(i) {
+      if (!isAdmin()) return;
+      if (confirm(`¿Borrar "${trainings[i].title}"?`)) {
+        trainings.splice(i, 1);
+        localStorage.setItem('futsalTrainings', JSON.stringify(trainings));
+        showTrainings();
+      }
+    }
+
+    function showTrainingDetail(i) {
+      const t = trainings[i];
+      let html = `<h2 class="text-2xl font-bold mb-4">${t.title}</h2><p class="mb-4">📅 ${t.date || 'Sin fecha'} • ${t.duration ? t.duration + ' min' : ''}</p>`;
+      if (t.exercises && t.exercises.length) {
+        html += `<h3 class="font-bold mb-3">Ejercicios del entreno:</h3><div id="exerciseListDetail"></div>`;
+      } else {
+        html += `<p class="text-gray-400">No hay ejercicios seleccionados</p>`;
+      }
+      const modal = document.createElement('div');
+      modal.className = "fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4";
+      modal.innerHTML = `<div class="bg-gray-800 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-auto p-6"><div class="flex justify-between mb-6"><h2 class="text-2xl font-bold">Detalle del Entreno</h2><button onclick="this.closest('.fixed').remove()" class="text-3xl text-red-500">✕</button></div>${html}<button onclick="this.closest('.fixed').remove()" class="w-full mt-6 py-4 bg-orange-600 rounded-2xl font-bold">Cerrar</button></div>`;
+      document.body.appendChild(modal);
+
+      const container = document.getElementById('exerciseListDetail');
+      if (container && t.exercises) {
+        t.exercises.forEach(name => {
+          const ex = exercises.find(e => e.name === name);
+          const div = document.createElement('div');
+          div.className = "bg-gray-700 rounded-2xl p-4 mb-3 flex items-center gap-4 cursor-pointer hover:bg-gray-600";
+          div.innerHTML = `<div class="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center text-3xl">📕</div><div class="flex-1"><p class="font-medium">${name}</p>${ex ? `<p class="text-sm text-gray-400">${ex.type || ''}</p>` : ''}</div>`;
+          div.addEventListener('click', () => openPdfFromTraining(name));
+          container.appendChild(div);
+        });
+      }
+    }
+
+    // ==================== EJERCICIOS ====================
+    function showExercises() {
+      const admin = isAdmin();
+      document.getElementById('content').innerHTML = `
+        <div class="flex justify-between mb-6">
+          <h2 class="text-3xl font-bold">Ejercicios (${exercises.length})</h2>
+          ${admin ? `<button onclick="openExerciseModal()" class="bg-orange-600 px-6 py-3 rounded-2xl font-bold">➕ Nuevo Ejercicio</button>` : ''}
+        </div>
+        <div id="exGrid" class="grid grid-cols-1 gap-4"></div>
+      `;
+      renderExercises();
+    }
+
+    function renderExercises() {
+      const grid = document.getElementById('exGrid');
+      grid.innerHTML = exercises.length === 0 ? `<p class="text-center py-12 text-gray-400">Aún no hay ejercicios</p>` : '';
+      const admin = isAdmin();
+      exercises.forEach((ex, i) => {
+        const div = document.createElement('div');
+        div.className = "bg-gray-800 rounded-3xl p-6 cursor-pointer";
+        let buttons = admin ? `<div class="flex gap-3 mt-4"><button onclick="editExercise(${i});event.stopImmediatePropagation()" class="flex-1 py-3 bg-gray-700 rounded-2xl">Editar</button><button onclick="deleteExercise(${i});event.stopImmediatePropagation()" class="flex-1 py-3 bg-red-900 rounded-2xl">Borrar</button></div>` : '';
+        div.innerHTML = `<h3 class="font-bold">${ex.name}</h3><p class="text-orange-400">${ex.type || ''}</p>${buttons}`;
+        div.onclick = (e) => { if (!e.target.closest('button')) openPdf(ex); };
+        grid.appendChild(div);
+      });
+    }
+
+    function openExerciseModal(index = null) {
+      if (!isAdmin()) return alert("Solo los administradores pueden crear o editar ejercicios");
+      document.getElementById('exerciseModal').classList.remove('hidden');
+      document.getElementById('exerciseForm').reset();
+      document.getElementById('exerciseIndex').value = index !== null ? index : '';
+      document.getElementById('exerciseTitle').textContent = index !== null ? "Editar Ejercicio" : "Nuevo Ejercicio";
+    }
+
+    function closeExerciseModal() {
+      document.getElementById('exerciseModal').classList.add('hidden');
+    }
+
+    document.getElementById('exerciseForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!isAdmin()) return;
+      const index = document.getElementById('exerciseIndex').value;
+      const file = document.getElementById('exPdfInput').files[0];
+      const saveExercise = (pdfData) => {
+        const ex = {
+          name: document.getElementById('exName').value.trim(),
+          type: document.getElementById('exType').value.trim(),
+          duration: document.getElementById('exDuration').value,
+          desc: document.getElementById('exDesc').value.trim(),
+          pdf: pdfData || (exercises[index] ? exercises[index].pdf : null)
+        };
+        if (!ex.name) return alert("El nombre es obligatorio");
+        if (index === '') exercises.push(ex); else exercises[index] = ex;
+        localStorage.setItem('futsalExercises', JSON.stringify(exercises));
+        closeExerciseModal();
+        showExercises();
+      };
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = ev => saveExercise(ev.target.result);
+        reader.readAsDataURL(file);
+      } else saveExercise(null);
+    });
+
+    function editExercise(i) {
+      if (!isAdmin()) return;
+      openExerciseModal(i);
+    }
+
+    function deleteExercise(i) {
+      if (!isAdmin()) return;
+      if (confirm(`¿Borrar "${exercises[i].name}"?`)) {
+        exercises.splice(i, 1);
+        localStorage.setItem('futsalExercises', JSON.stringify(exercises));
+        showExercises();
+      }
+    }
+
+    // ==================== PARTIDOS ====================
+    function showMatches() {
+      const admin = isAdmin();
+      document.getElementById('content').innerHTML = `
+        <div class="flex justify-between mb-6">
+          <h2 class="text-3xl font-bold">📆 Partidos (${matches.length})</h2>
+          ${admin ? `<button onclick="openMatchModal()" class="bg-orange-600 px-6 py-3 rounded-2xl font-bold">➕ Nuevo Partido</button>` : ''}
+        </div>
+        <div id="matchesList" class="space-y-4"></div>
+      `;
+      renderMatches();
+    }
+
+    function renderMatches() {
+      const container = document.getElementById('matchesList');
+      container.innerHTML = matches.length === 0 ? `<p class="text-center py-12 text-gray-400">Aún no hay partidos programados</p>` : '';
+      const admin = isAdmin();
+      matches.forEach((m, i) => {
+        const div = document.createElement('div');
+        div.className = "bg-gray-800 rounded-3xl p-6";
+        let buttons = admin ? `<div class="flex gap-3 mt-5"><button onclick="editMatch(${i});event.stopImmediatePropagation()" class="flex-1 py-3 bg-gray-700 rounded-2xl">Editar</button><button onclick="deleteMatch(${i});event.stopImmediatePropagation()" class="flex-1 py-3 bg-red-900 rounded-2xl">Borrar</button></div>` : '';
+        div.innerHTML = `
+          <div class="flex justify-between text-sm text-orange-400">
+            <span>${m.date} ${m.time ? '• ' + m.time : ''}</span>
+            <span class="font-bold">${m.result || '-'}</span>
+          </div>
+          <h3 class="font-bold text-xl mt-1">${m.opponent}</h3>
+          <p class="text-gray-400">${m.location || 'Sin pabellón'}</p>
+          ${m.notes ? `<p class="text-sm text-gray-300 mt-3">${m.notes}</p>` : ''}
+          ${buttons}
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function openMatchModal(index = null) {
+      if (!isAdmin()) return alert("Solo los administradores pueden crear o editar partidos");
+      document.getElementById('matchModal').classList.remove('hidden');
+      document.getElementById('matchForm').reset();
+      document.getElementById('matchIndex').value = index !== null ? index : '';
+      document.getElementById('matchTitle').textContent = index !== null ? "Editar Partido" : "Nuevo Partido";
+    }
+
+    function closeMatchModal() {
+      document.getElementById('matchModal').classList.add('hidden');
+    }
+
+    document.getElementById('matchForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!isAdmin()) return;
+      const index = document.getElementById('matchIndex').value;
+      const match = {
+        date: document.getElementById('mDate').value,
+        time: document.getElementById('mTime').value,
+        opponent: document.getElementById('mOpponent').value,
+        location: document.getElementById('mLocation').value,
+        result: document.getElementById('mResult').value,
+        notes: document.getElementById('mNotes').value
+      };
+      if (index === '') matches.push(match); else matches[index] = match;
+      localStorage.setItem('futsalMatches', JSON.stringify(matches));
+      closeMatchModal();
+      showMatches();
+    });
+
+    function editMatch(i) {
+      if (!isAdmin()) return;
+      openMatchModal(i);
+    }
+
+    function deleteMatch(i) {
+      if (!isAdmin()) return;
+      if (confirm(`¿Borrar partido contra ${matches[i].opponent}?`)) {
+        matches.splice(i, 1);
+        localStorage.setItem('futsalMatches', JSON.stringify(matches));
+        showMatches();
+      }
+    }
+
+    function showTactics() {
+      document.getElementById('content').innerHTML = `
+        <div class="text-center py-20">
+          <h2 class="text-4xl font-bold mb-6">Pizarra Táctica</h2>
+          <button onclick="openTacticsModal()" class="bg-orange-600 px-14 py-6 rounded-3xl text-2xl font-bold">🖌️ Abrir Campo</button>
+        </div>`;
+    }
+
+    // ==================== BACKUP ====================
+    function exportData() {
+      const dataExport = {
+        version: "1.9",
+        fecha: new Date().toISOString(),
+        app: "Futsal Coach Pro",
+        users: users,
+        players: players,
+        trainings: trainings,
+        exercises: exercises,
+        matches: matches,
+        tactics: { drawings, playersOnBoard, ball },
+        savedTactics: savedTactics
+      };
+
+      const jsonString = JSON.stringify(dataExport, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `futsal-backup-${new Date().toISOString().slice(0,16).replace('T','-')}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      const msg = document.createElement('div');
+      msg.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#10b981; color:white; padding:14px 28px; border-radius:9999px; font-weight:600; box-shadow:0 10px 15px -3px rgb(0 0 0 / 0.3); z-index:9999;';
+      msg.textContent = '✅ Backup descargado';
+      document.body.appendChild(msg);
+      setTimeout(() => msg.remove(), 2500);
+    }
+
+    function showImportDialog() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.onchange = function(e) {
+        if (e.target.files && e.target.files[0]) importData(e.target.files[0]);
+      };
+      input.click();
+    }
+
+    function importData(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedData = JSON.parse(e.target.result);
+          if (!confirm(`⚠️ ¿Importar este backup?\n\nFecha: ${importedData.fecha ? new Date(importedData.fecha).toLocaleString('es-ES') : 'desconocida'}\n\nEsto SOBREESCRIBIRÁ TODOS los datos actuales.`)) return;
+
+          if (importedData.users !== undefined) users = importedData.users || [];
+          if (importedData.players !== undefined) players = importedData.players || [];
+          if (importedData.trainings !== undefined) trainings = importedData.trainings || [];
+          if (importedData.exercises !== undefined) exercises = importedData.exercises || [];
+          if (importedData.matches !== undefined) matches = importedData.matches || [];
+          if (importedData.savedTactics) savedTactics = importedData.savedTactics;
+          if (importedData.tactics) {
+            drawings = importedData.tactics.drawings || [];
+            playersOnBoard = importedData.tactics.playersOnBoard || [];
+            ball = importedData.tactics.ball || null;
+          }
+
+          localStorage.setItem('futsalUsers', JSON.stringify(users));
+          localStorage.setItem('futsalPlayers', JSON.stringify(players));
+          localStorage.setItem('futsalTrainings', JSON.stringify(trainings));
+          localStorage.setItem('futsalExercises', JSON.stringify(exercises));
+          localStorage.setItem('futsalMatches', JSON.stringify(matches));
+          localStorage.setItem('futsalSavedTactics', JSON.stringify(savedTactics));
+          localStorage.setItem('futsalTactics', JSON.stringify({ drawings, playersOnBoard, ball }));
+
+          alert('✅ Datos importados correctamente.\n\nRecargando la app...');
+          closeAdmin();
+          location.reload();
+        } catch (error) {
+          alert('❌ Error al leer el archivo:\n' + error.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ==================== INICIALIZACIÓN ====================
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      await checkLogin();
+    });
+  </script>
+</body>
+</html>
