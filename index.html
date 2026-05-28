@@ -111,6 +111,7 @@
       <div class="flex gap-2 mb-4">
         <button onclick="setTool('move')" id="tool-move" class="flex-1 py-3 bg-gray-700 rounded-2xl font-bold nav-active">✋ Mover</button>
         <button onclick="setTool('line')" id="tool-line" class="flex-1 py-3 bg-orange-600 rounded-2xl font-bold">🖌️ Línea libre</button>
+        <button onclick="undoLastAction()" class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-2xl font-bold flex items-center justify-center gap-1">↩️ Deshacer</button>
       </div>
 
       <div class="text-center text-red-400 font-bold mb-2">EQUIPO ROJO (Local)</div>
@@ -415,6 +416,7 @@
     let playersOnBoard = [];
     let ball = null;
     let drawings = [];
+    let history = [];   // ← Para el Deshacer
     let currentTool = 'move';
     let painting = false;
     let draggedIndex = -1;
@@ -514,6 +516,8 @@
         return;
       }
       if (currentTool === 'line') {
+        // Guardamos estado antes de dibujar nueva línea
+        history.push(JSON.parse(JSON.stringify(drawings)));
         painting = true;
         drawings.push({ points: [pos] });
       }
@@ -570,10 +574,21 @@
       drawCanvas();
     }
 
+    // ==================== NUEVO: DESHACER ====================
+    function undoLastAction() {
+      if (history.length > 0) {
+        drawings = history.pop();
+        drawCanvas();
+      } else {
+        alert("Nada que deshacer, míster 😅");
+      }
+    }
+
     function loadTactics(tactic) {
       drawings = tactic.drawings || [];
       playersOnBoard = tactic.playersOnBoard || [];
       ball = tactic.ball || null;
+      history = []; // Limpiamos historial al cargar
       drawCanvas();
     }
 
@@ -661,6 +676,7 @@
         drawings = [];
         playersOnBoard = [];
         ball = null;
+        history = [];
         drawCanvas();
       }
     }
@@ -673,6 +689,7 @@
         drawings = lastTactic.drawings || [];
         playersOnBoard = lastTactic.playersOnBoard || [];
         ball = lastTactic.ball || null;
+        history = [];
         drawCanvas();
         setTool('move');
         renderSavedTacticsList();
@@ -857,7 +874,7 @@
       showPlayers();
     });
 
-    // ==================== FICHA DETALLE JUGADOR ====================
+    // ==================== FICHA DETALLE JUGADOR (ARREGLADO) ====================
     function showPlayerDetail(i) {
       const p = players[i];
       if (!p) return;
@@ -879,7 +896,10 @@
       }
       const editBtn = document.getElementById('detailEditBtn');
       editBtn.style.display = isAdmin() ? 'block' : 'none';
-      editBtn.onclick = () => { closePlayerDetailModal(); editPlayer(i); };
+      editBtn.onclick = () => { 
+        closePlayerDetailModal(); 
+        editPlayer(i); 
+      };
       document.getElementById('playerDetailModal').classList.remove('hidden');
     }
 
@@ -888,7 +908,8 @@
     }
 
     function editFromDetail() {
-      // Ya se maneja en el onclick
+      // Esta función ya no se usa directamente (el onclick se asigna en showPlayerDetail)
+      // Pero la mantenemos por si acaso
     }
 
     // ==================== SECCIONES ====================
@@ -957,7 +978,7 @@
       }
     }
 
-    // ==================== ENTRENOS ====================
+    // ==================== ENTRENOS, EJERCICIOS, PARTIDOS, BACKUP (todo lo demás intacto) ====================
     function showTrainings() {
       const admin = isAdmin();
       document.getElementById('content').innerHTML = `
@@ -1248,7 +1269,7 @@
     // ==================== BACKUP ====================
     function exportData() {
       const dataExport = {
-        version: "2.0",
+        version: "2.1",
         fecha: new Date().toISOString(),
         app: "Futsal Coach Pro",
         users: users,
