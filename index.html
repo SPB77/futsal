@@ -37,6 +37,13 @@
       object-position: center;
       transition: transform 0.3s ease;
     }
+    .tactic-preview {
+      width: 64px;
+      height: 48px;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 2px solid #374151;
+    }
   </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
@@ -136,7 +143,7 @@
       <button onclick="saveNewTactic()" class="mt-3 w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold">💾 Guardar como nueva táctica</button>
       <button onclick="saveTactics()" class="mt-3 w-full py-3 bg-green-600 rounded-2xl font-bold">💾 Guardar cambios en táctica actual</button>
 
-      <!-- SECCIÓN TÁCTICAS GUARDADAS -->
+      <!-- SECCIÓN TÁCTICAS GUARDADAS CON VISTA PREVIA -->
       <div class="mt-8 border-t border-gray-600 pt-6">
         <h3 class="font-bold text-lg mb-3 flex items-center gap-2">📋 Tácticas Guardadas</h3>
         <div id="savedTacticsList" class="max-h-64 overflow-auto space-y-2"></div>
@@ -310,7 +317,6 @@
     let users = JSON.parse(localStorage.getItem('futsalUsers')) || [
       { username: "Sebas", password: "f18dee6116d0c86a0178ad1ec9a534b653469d683dfe859e721084b976096ae1", role: "admin" },
       { username: "Pep", password: "069da696bd97ea88d9bdde8d7e43486308dc6c2e93fa4144e9a74c41e8ef135c", role: "user" },
-      { username: "Rafa", password: "598c45bc35815ddca4b79bed428c187bb483a0cbfdc1da0451f582e30192ad8b", role: "user" }
     ];
 
     let currentUser = null;
@@ -416,7 +422,7 @@
     let playersOnBoard = [];
     let ball = null;
     let drawings = [];
-    let history = [];   // ← Para el Deshacer
+    let history = [];
     let currentTool = 'move';
     let painting = false;
     let draggedIndex = -1;
@@ -516,7 +522,6 @@
         return;
       }
       if (currentTool === 'line') {
-        // Guardamos estado antes de dibujar nueva línea
         history.push(JSON.parse(JSON.stringify(drawings)));
         painting = true;
         drawings.push({ points: [pos] });
@@ -574,7 +579,6 @@
       drawCanvas();
     }
 
-    // ==================== NUEVO: DESHACER ====================
     function undoLastAction() {
       if (history.length > 0) {
         drawings = history.pop();
@@ -588,8 +592,54 @@
       drawings = tactic.drawings || [];
       playersOnBoard = tactic.playersOnBoard || [];
       ball = tactic.ball || null;
-      history = []; // Limpiamos historial al cargar
+      history = [];
       drawCanvas();
+    }
+
+    function generateThumbnail() {
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = 120;
+      thumbCanvas.height = 80;
+      const thumbCtx = thumbCanvas.getContext('2d');
+      thumbCtx.fillStyle = '#0f6b2f';
+      thumbCtx.fillRect(0, 0, 120, 80);
+      const scale = 120 / 720;
+      thumbCtx.strokeStyle = '#f59e0b';
+      thumbCtx.lineWidth = 8 * scale;
+      thumbCtx.lineCap = 'round';
+      drawings.forEach(path => {
+        if (path.points.length < 1) return;
+        thumbCtx.beginPath();
+        thumbCtx.moveTo(path.points[0].x * scale, path.points[0].y * scale);
+        for (let i = 1; i < path.points.length; i++) {
+          thumbCtx.lineTo(path.points[i].x * scale, path.points[i].y * scale);
+        }
+        thumbCtx.stroke();
+      });
+      playersOnBoard.forEach(p => {
+        thumbCtx.fillStyle = p.color;
+        thumbCtx.beginPath();
+        thumbCtx.arc(p.x * scale, p.y * scale, 13 * scale, 0, Math.PI * 2);
+        thumbCtx.fill();
+        thumbCtx.strokeStyle = 'white';
+        thumbCtx.lineWidth = 3 * scale;
+        thumbCtx.stroke();
+        thumbCtx.fillStyle = (p.color === '#eab308') ? 'black' : 'white';
+        thumbCtx.font = `bold ${11 * scale}px Arial`;
+        thumbCtx.textAlign = 'center';
+        thumbCtx.textBaseline = 'middle';
+        thumbCtx.fillText(p.number, p.x * scale, p.y * scale);
+      });
+      if (ball) {
+        thumbCtx.fillStyle = '#1e2937';
+        thumbCtx.beginPath();
+        thumbCtx.arc(ball.x * scale, ball.y * scale, 9 * scale, 0, Math.PI * 2);
+        thumbCtx.fill();
+        thumbCtx.strokeStyle = '#f59e0b';
+        thumbCtx.lineWidth = 3 * scale;
+        thumbCtx.stroke();
+      }
+      return thumbCanvas.toDataURL('image/png');
     }
 
     function saveTactics() {
@@ -607,13 +657,15 @@
       if (!isAdmin()) return alert("Solo los administradores pueden guardar tácticas");
       const name = prompt("Nombre de la táctica:", "Táctica " + new Date().toLocaleDateString('es-ES'));
       if (!name) return;
+      const thumbnail = generateThumbnail();
       const newTactic = {
         id: Date.now(),
         name: name,
         date: new Date().toLocaleDateString('es-ES'),
         drawings: JSON.parse(JSON.stringify(drawings)),
         playersOnBoard: JSON.parse(JSON.stringify(playersOnBoard)),
-        ball: ball ? { ...ball } : null
+        ball: ball ? { ...ball } : null,
+        thumbnail: thumbnail
       };
       savedTactics.unshift(newTactic);
       localStorage.setItem('futsalSavedTactics', JSON.stringify(savedTactics));
@@ -628,9 +680,10 @@
         : '';
       savedTactics.forEach((t, index) => {
         const div = document.createElement('div');
-        div.className = "bg-gray-700 rounded-2xl p-4 flex justify-between items-center";
+        div.className = "bg-gray-700 rounded-2xl p-4 flex items-center gap-3";
         div.innerHTML = `
-          <div>
+          ${t.thumbnail ? `<img src="${t.thumbnail}" class="tactic-preview">` : `<div class="w-16 h-12 bg-gray-600 rounded-xl flex items-center justify-center text-xs">Sin vista</div>`}
+          <div class="flex-1">
             <p class="font-bold">${t.name}</p>
             <p class="text-xs text-gray-400">${t.date}</p>
           </div>
@@ -874,7 +927,7 @@
       showPlayers();
     });
 
-    // ==================== FICHA DETALLE JUGADOR (ARREGLADO) ====================
+    // ==================== FICHA DETALLE JUGADOR ====================
     function showPlayerDetail(i) {
       const p = players[i];
       if (!p) return;
@@ -896,10 +949,7 @@
       }
       const editBtn = document.getElementById('detailEditBtn');
       editBtn.style.display = isAdmin() ? 'block' : 'none';
-      editBtn.onclick = () => { 
-        closePlayerDetailModal(); 
-        editPlayer(i); 
-      };
+      editBtn.onclick = () => { closePlayerDetailModal(); editPlayer(i); };
       document.getElementById('playerDetailModal').classList.remove('hidden');
     }
 
@@ -908,8 +958,7 @@
     }
 
     function editFromDetail() {
-      // Esta función ya no se usa directamente (el onclick se asigna en showPlayerDetail)
-      // Pero la mantenemos por si acaso
+      // Ya se maneja en el onclick
     }
 
     // ==================== SECCIONES ====================
@@ -978,7 +1027,7 @@
       }
     }
 
-    // ==================== ENTRENOS, EJERCICIOS, PARTIDOS, BACKUP (todo lo demás intacto) ====================
+    // ==================== ENTRENOS ====================
     function showTrainings() {
       const admin = isAdmin();
       document.getElementById('content').innerHTML = `
@@ -1269,7 +1318,7 @@
     // ==================== BACKUP ====================
     function exportData() {
       const dataExport = {
-        version: "2.1",
+        version: "2.2",
         fecha: new Date().toISOString(),
         app: "Futsal Coach Pro",
         users: users,
