@@ -4,12 +4,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Futsal Coach Pro">
+  <meta name="apple-mobile-web-app-title" content="ETB Coach Pro">
   <meta name="theme-color" content="#f59e0b">
-  <link rel="apple-touch-icon" href="campo.jpg">
+  <link rel="apple-touch-icon" href="E.T.B. Calvia.png">
   <link rel="manifest" href="manifest.json">
 
-  <title>Futsal Coach Pro</title>
+  <title>ETB Coach Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .nav-active { background-color: #f59e0b; color: black; font-weight: bold; }
@@ -51,7 +51,7 @@
   <!-- LOGIN -->
   <div id="loginScreen" class="fixed inset-0 bg-black/95 flex items-center justify-center z-[200]">
     <div class="bg-gray-800 rounded-3xl p-8 w-full max-w-sm mx-4">
-      <h1 class="text-4xl text-center mb-2">⚽ Futsal Coach Pro</h1>
+      <h1 class="text-4xl text-center mb-2">⚽ ETB Coach Pro</h1>
       <p class="text-orange-400 text-center mb-8">Solo para el cuerpo técnico</p>
       <form id="loginForm">
         <input type="text" id="usernameInput" placeholder="Usuario" class="w-full p-4 bg-gray-700 rounded-2xl mb-3">
@@ -87,7 +87,7 @@
 
   <!-- Header -->
   <header id="mainHeader" class="hidden bg-orange-600 p-5 sticky top-0 z-50 flex justify-between items-center">
-    <h1 class="text-3xl font-bold">⚽ Futsal Coach</h1>
+    <h1 class="text-3xl font-bold">⚽ ETB Coach</h1>
     <div class="flex gap-2">
       <button onclick="showAdminPanel()" id="adminBtn" class="bg-gray-700 px-5 py-2 rounded-2xl text-sm">👑 Panel</button>
       <button onclick="logout()" class="bg-gray-700 px-5 py-2 rounded-2xl text-sm">Salir</button>
@@ -143,7 +143,6 @@
       <button onclick="saveNewTactic()" class="mt-3 w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold">💾 Guardar como nueva táctica</button>
       <button onclick="saveTactics()" class="mt-3 w-full py-3 bg-green-600 rounded-2xl font-bold">💾 Guardar cambios en táctica actual</button>
 
-      <!-- SECCIÓN TÁCTICAS GUARDADAS CON VISTA PREVIA -->
       <div class="mt-8 border-t border-gray-600 pt-6">
         <h3 class="font-bold text-lg mb-3 flex items-center gap-2">📋 Tácticas Guardadas</h3>
         <div id="savedTacticsList" class="max-h-64 overflow-auto space-y-2"></div>
@@ -162,7 +161,6 @@
         <label class="block mb-2 font-medium">Fotos del jugador (puedes subir varias)</label>
         <input type="file" id="photoInput" accept="image/*" multiple class="block w-full mb-4 bg-gray-700 rounded-2xl p-3">
         <div id="photoPreviewContainer" class="grid grid-cols-3 gap-3 mb-6 max-h-64 overflow-auto"></div>
-
         <input type="text" id="pName" placeholder="Nombre completo" class="w-full p-4 mb-4 bg-gray-700 rounded-2xl" required>
         <div class="grid grid-cols-2 gap-4">
           <input type="text" id="pPosition" placeholder="Posición" class="p-4 bg-gray-700 rounded-2xl">
@@ -317,6 +315,7 @@
     let users = JSON.parse(localStorage.getItem('futsalUsers')) || [
       { username: "Sebas", password: "f18dee6116d0c86a0178ad1ec9a534b653469d683dfe859e721084b976096ae1", role: "admin" },
       { username: "Pep", password: "069da696bd97ea88d9bdde8d7e43486308dc6c2e93fa4144e9a74c41e8ef135c", role: "user" },
+      { username: "Rafa", password: "598c45bc35815ddca4b79bed428c187bb483a0cbfdc1da0451f582e30192ad8b", role: "user" }
     ];
 
     let currentUser = null;
@@ -1027,7 +1026,6 @@
       }
     }
 
-    // ==================== ENTRENOS ====================
     function showTrainings() {
       const admin = isAdmin();
       document.getElementById('content').innerHTML = `
@@ -1318,9 +1316,9 @@
     // ==================== BACKUP ====================
     function exportData() {
       const dataExport = {
-        version: "2.2",
+        version: "2.3",
         fecha: new Date().toISOString(),
-        app: "Futsal Coach Pro",
+        app: "ETB Coach Pro",
         users: users,
         players: players,
         trainings: trainings,
@@ -1335,7 +1333,7 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `futsal-backup-${new Date().toISOString().slice(0,16).replace('T','-')}.json`;
+      link.download = `etb-backup-${new Date().toISOString().slice(0,16).replace('T','-')}.json`;
       link.click();
       URL.revokeObjectURL(url);
 
